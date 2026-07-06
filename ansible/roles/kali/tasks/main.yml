@@ -21,6 +21,7 @@
   tags: [attacker]
 
 - name: Allow non-root packet capture (wireshark group)
+  tags: [attacker]
   block:
     - name: Ensure the wireshark group exists
       ansible.builtin.group:
@@ -45,9 +46,9 @@
         name: "{{ kali_capture_user }}"
         groups: wireshark
         append: true
-  tags: [attacker]
 
 - name: Initialise the Metasploit database (msfdb)
+  tags: [attacker]
   block:
     - name: Ensure PostgreSQL is running
       ansible.builtin.service:
@@ -63,7 +64,6 @@
       become: true
       become_user: "{{ kali_capture_user }}"
       failed_when: false
-  tags: [attacker]
 
 - name: Stage lab notes directory
   ansible.builtin.file:

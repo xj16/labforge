@@ -11,5 +11,5 @@ $ActionQueueMaxDiskSpace 64m
 $ActionQueueSaveOnShutdown on
 $ActionResumeRetryCount -1
 
-# Forward everything. {{ forwarder_protocol }} == TCP (@@) or UDP (@).
-*.* {{ forwarder_protocol }}{{ forwarder_siem_host }}:{{ forwarder_siem_port }}
+# Forward everything. {{ log_forwarder_protocol }} == TCP (@@) or UDP (@).
+*.* {{ log_forwarder_protocol }}{{ log_forwarder_siem_host }}:{{ log_forwarder_siem_port }}

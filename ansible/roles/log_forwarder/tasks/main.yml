@@ -9,7 +9,7 @@
 
 - name: Ensure the rsyslog spool directory exists
   ansible.builtin.file:
-    path: "{{ forwarder_queue_dir }}"
+    path: "{{ log_forwarder_queue_dir }}"
     state: directory
     owner: root
     group: root

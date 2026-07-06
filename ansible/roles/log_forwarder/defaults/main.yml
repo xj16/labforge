@@ -1,9 +1,9 @@
 ---
 # log_forwarder role defaults.
-forwarder_siem_host: "{{ siem_host }}"
-forwarder_siem_port: "{{ siem_syslog_port | default(5514) }}"
+log_forwarder_siem_host: "{{ siem_host }}"
+log_forwarder_siem_port: "{{ siem_syslog_port | default(5514) }}"
 # Use TCP (@@) for reliable delivery; switch to '@' for UDP if you want to
 # study lossy transport in Wireshark.
-forwarder_protocol: "@@"
+log_forwarder_protocol: "@@"
 # Buffer to disk if the SIEM is briefly unreachable so no events are lost.
-forwarder_queue_dir: /var/spool/rsyslog
+log_forwarder_queue_dir: /var/spool/rsyslog

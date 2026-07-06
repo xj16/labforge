@@ -26,10 +26,10 @@
   ansible.builtin.package:
     name: "{{ common_base_packages + common_extra_packages }}"
     state: present
-  register: pkg_result
+  register: common_pkg_result
   retries: 3
   delay: 5
-  until: pkg_result is succeeded
+  until: common_pkg_result is succeeded
   tags: [common, packages]
 
 - name: Ensure rsyslog is enabled and running
@@ -54,7 +54,7 @@
       ansible.builtin.package:
         name: nftables
         state: present
-      register: nft_install
+      register: common_nft_install
       failed_when: false
 
     - name: Deploy lab isolation ruleset
@@ -64,7 +64,7 @@
         owner: root
         group: root
         mode: "0644"
-      when: nft_install is not failed
+      when: common_nft_install is not failed
       notify: Reload labforge nftables
 
     - name: Enable nftables service
@@ -72,5 +72,5 @@
         name: nftables
         state: started
         enabled: true
-      when: nft_install is not failed
+      when: common_nft_install is not failed
       failed_when: false

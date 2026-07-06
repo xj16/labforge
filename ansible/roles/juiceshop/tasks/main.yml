@@ -33,14 +33,14 @@
         dest: "{{ juiceshop_home }}"
         version: "{{ juiceshop_version }}"
         depth: 1
-      register: js_clone
+      register: juiceshop_clone
 
     - name: Install Juice Shop dependencies
       community.general.npm:
         path: "{{ juiceshop_home }}"
         production: true
         state: present
-      when: js_clone is changed
+      when: juiceshop_clone is changed
 
     - name: Own the install tree
       ansible.builtin.file:

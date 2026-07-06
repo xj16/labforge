@@ -1,0 +1,24 @@
+# {{ ansible_managed }}
+# labforge — Metasploit resource script for lab recon.
+# Run with:  msfconsole -q -r recon.rc
+#
+# Educational use against the deliberately-vulnerable lab targets only.
+
+# Make sure the database is connected so hosts/services get stored.
+db_status
+
+# Sweep the lab segment and import results into the msf database.
+db_nmap -sV -T4 {{ lab_network_prefix }}.0/24
+
+# Show what we found.
+hosts
+services
+
+# Point at the web targets so follow-up modules have RHOSTS preset.
+setg RHOSTS {{ lab_hosts.juice }} {{ lab_hosts.dvwa }}
+
+# Example: enumerate HTTP on the targets (safe, read-only).
+use auxiliary/scanner/http/http_version
+run
+
+echo "[labforge] Recon complete. Explore modules with 'search type:auxiliary http'."

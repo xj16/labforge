@@ -1,0 +1,46 @@
+#!/usr/sbin/nft -f
+# {{ ansible_managed }}
+#
+# labforge isolation guard.
+#
+# Purpose: make it structurally impossible for a lab box to reach the internet,
+# even if someone accidentally adds a NAT interface later. Traffic is allowed
+# ONLY within the lab subnet ({{ lab_subnet_cidr }}) and to/from loopback.
+#
+# This is defence-in-depth. The primary isolation is that VirtualBox host-only
+# NICs have no default route off-segment. Keeping the lab air-gapped is the
+# whole point — see README's ethics note.
+
+flush ruleset
+
+table inet labforge {
+    chain input {
+        type filter hook input priority 0; policy accept;
+        # Loopback and established/related are always fine.
+        iif "lo" accept
+        ct state established,related accept
+    }
+
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+    }
+
+    chain output {
+        type filter hook output priority 0; policy accept;
+
+        # Allow loopback.
+        oif "lo" accept
+
+        # Allow anything staying inside the lab subnet.
+        ip daddr {{ lab_subnet_cidr }} accept
+
+        # Allow replies to connections that originated inside the lab.
+        ct state established,related accept
+
+        # Allow DHCP so the host-only lease still works.
+        udp dport { 67, 68 } accept
+
+        # DROP everything else — no route to the outside world.
+        ip daddr 0.0.0.0/0 drop
+    }
+}

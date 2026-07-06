@@ -1,0 +1,24 @@
+---
+# kali attacker role defaults.
+#
+# The kalilinux/rolling box already ships most of this, but we make the intent
+# explicit and idempotent so a trimmed base image works too. Package install
+# uses the box's configured Kali mirror; if you run the lab fully air-gapped,
+# pre-bake these into a custom box instead.
+
+kali_tools:
+  - metasploit-framework
+  - wireshark
+  - tshark
+  - nmap
+  - burpsuite
+  - sqlmap
+  - hydra
+  - nikto
+  - dirb
+
+# Add the vagrant user to the wireshark group so it can capture without root.
+kali_capture_user: vagrant
+
+# Where to drop lab cheat-sheets and target notes on the attacker box.
+kali_notes_dir: /home/vagrant/labforge

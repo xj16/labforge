@@ -1,0 +1,139 @@
+---
+# dvwa — deploy the Damn Vulnerable Web Application on a LAMP stack.
+#
+# Debian target: Apache + PHP + MariaDB. DVWA is checked out into the docroot,
+# its config is templated, and the database is created + seeded. All of this is
+# deliberately insecure and MUST stay on the isolated lab network.
+
+- name: Install the LAMP stack and DVWA PHP dependencies
+  ansible.builtin.apt:
+    name:
+      - apache2
+      - mariadb-server
+      - php
+      - libapache2-mod-php
+      - php-mysqli
+      - php-gd
+      - git
+      - python3-pymysql
+    state: present
+    update_cache: true
+  tags: [dvwa]
+
+- name: Ensure Apache and MariaDB are running
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  loop:
+    - apache2
+    - mariadb
+  tags: [dvwa]
+
+- name: Clone DVWA into the docroot
+  ansible.builtin.git:
+    repo: "{{ dvwa_repo }}"
+    dest: "{{ dvwa_docroot }}"
+    version: "{{ dvwa_version }}"
+    depth: 1
+  tags: [dvwa]
+
+- name: Template the DVWA config
+  ansible.builtin.template:
+    src: config.inc.php.j2
+    dest: "{{ dvwa_docroot }}/config/config.inc.php"
+    owner: www-data
+    group: www-data
+    mode: "0644"
+  tags: [dvwa]
+
+- name: Make DVWA writable where it expects to be
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: www-data
+    group: www-data
+    recurse: true
+  loop:
+    - "{{ dvwa_docroot }}/hackable/uploads"
+    - "{{ dvwa_docroot }}/config"
+  tags: [dvwa]
+
+- name: Harden PHP just enough for DVWA to run its intended-vulnerable features
+  ansible.builtin.lineinfile:
+    path: "/etc/php/{{ dvwa_php_version | default('8.2') }}/apache2/php.ini"
+    regexp: "^{{ item.key }}"
+    line: "{{ item.key }} = {{ item.value }}"
+  loop:
+    - { key: "allow_url_include", value: "On" }
+    - { key: "allow_url_fopen", value: "On" }
+  loop_control:
+    label: "{{ item.key }}"
+  notify: Restart apache2
+  failed_when: false
+  tags: [dvwa]
+
+# ---------------------------------------------------------------------------
+# Database setup
+# ---------------------------------------------------------------------------
+- name: Create the DVWA database
+  community.mysql.mysql_db:
+    name: "{{ dvwa_db_name }}"
+    state: present
+    login_unix_socket: /run/mysqld/mysqld.sock
+  tags: [dvwa]
+
+- name: Create the DVWA database user
+  community.mysql.mysql_user:
+    name: "{{ dvwa_db_user }}"
+    password: "{{ dvwa_db_password }}"
+    priv: "{{ dvwa_db_name }}.*:ALL"
+    host: localhost
+    state: present
+    login_unix_socket: /run/mysqld/mysqld.sock
+  tags: [dvwa]
+
+- name: Deploy the vhost so DVWA is the default site
+  ansible.builtin.template:
+    src: dvwa.conf.j2
+    dest: /etc/apache2/sites-available/dvwa.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart apache2
+  tags: [dvwa]
+
+- name: Enable the DVWA vhost and disable the default
+  ansible.builtin.command:
+    cmd: "{{ item }}"
+  loop:
+    - a2dissite 000-default.conf
+    - a2ensite dvwa.conf
+  changed_when: true
+  notify: Restart apache2
+  tags: [dvwa]
+
+- name: Flush handlers so Apache restarts before the seed step
+  ansible.builtin.meta: flush_handlers
+  tags: [dvwa]
+
+- name: Seed the DVWA database (idempotent — skipped if already seeded)
+  ansible.builtin.uri:
+    url: "http://127.0.0.1:{{ dvwa_port }}/setup.php"
+    method: POST
+    body: "create_db=Create+%2F+Reset+Database"
+    body_format: raw
+    headers:
+      Content-Type: application/x-www-form-urlencoded
+    status_code: [200, 302]
+  register: dvwa_seed
+  failed_when: false
+  changed_when: dvwa_seed.status in [200, 302]
+  tags: [dvwa]
+
+- name: Report DVWA URL and credentials
+  ansible.builtin.debug:
+    msg:
+      - "DVWA -> http://{{ ansible_default_ipv4.address | default(lab_hosts.dvwa) }}:{{ dvwa_port }}/"
+      - "Login: admin / password  |  DB security level: {{ dvwa_security_level }}"
+  tags: [dvwa]

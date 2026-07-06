@@ -1,0 +1,22 @@
+---
+# splunk (SIEM) role defaults.
+#
+# labforge ships a 100%-FREE, Splunk-STYLE centralized log server built on
+# rsyslog (collector) + a tiny read-only web viewer. It speaks plain RFC5424
+# syslog on TCP so ANY forwarder — rsyslog, syslog-ng, or a real Splunk
+# Universal Forwarder — can ship to it. If you own a Splunk license, set
+# splunk_use_real_splunk: true and point splunk_deb_url at your downloaded
+# package; the role will install it instead of the free viewer.
+
+splunk_syslog_port: "{{ siem_syslog_port | default(5514) }}"
+splunk_data_dir: "{{ siem_data_dir | default('/opt/labforge-siem') }}"
+splunk_log_root: "{{ splunk_data_dir }}/logs"
+
+# Lightweight web viewer (Python stdlib http.server + a log-tailing CGI).
+splunk_web_enabled: true
+splunk_web_port: 8000
+
+# --- Optional: real Splunk Enterprise (requires YOUR licensed .deb) ----------
+# The lab is offline; you must stage the package yourself and set the path.
+splunk_use_real_splunk: false
+splunk_deb_path: "/opt/labforge-siem/splunk.deb"

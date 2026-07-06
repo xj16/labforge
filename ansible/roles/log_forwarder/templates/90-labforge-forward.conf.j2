@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+# labforge — forward all local syslog to the central SIEM.
+#
+# Delivery is reliable: an on-disk action queue buffers events if the SIEM is
+# momentarily unreachable, so a target reboot during an attack won't lose logs.
+
+# Disk-assisted queue for the forwarding action.
+$ActionQueueType LinkedList
+$ActionQueueFileName labforge_fwd
+$ActionQueueMaxDiskSpace 64m
+$ActionQueueSaveOnShutdown on
+$ActionResumeRetryCount -1
+
+# Forward everything. {{ forwarder_protocol }} == TCP (@@) or UDP (@).
+*.* {{ forwarder_protocol }}{{ forwarder_siem_host }}:{{ forwarder_siem_port }}

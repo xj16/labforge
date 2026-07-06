@@ -1,0 +1,102 @@
+---
+# kali — provision the attacker workstation.
+#
+# Installs the core offensive tooling (Metasploit, Wireshark/tshark, Burp,
+# nmap, sqlmap, ...), lets the vagrant user capture packets without root, and
+# stages lab notes + a target scan helper. Everything here is for use ONLY
+# against the deliberately-vulnerable targets you own inside this lab.
+
+- name: Install offensive tooling
+  ansible.builtin.apt:
+    name: "{{ kali_tools }}"
+    state: present
+    update_cache: true
+  register: kali_pkg
+  retries: 2
+  delay: 10
+  until: kali_pkg is succeeded
+  # A trimmed image may miss a package name across Kali versions; don't abort
+  # the whole lab for one missing tool — surface it and continue.
+  failed_when: false
+  tags: [attacker]
+
+- name: Allow non-root packet capture (wireshark group)
+  block:
+    - name: Ensure the wireshark group exists
+      ansible.builtin.group:
+        name: wireshark
+        state: present
+
+    - name: Reconfigure wireshark-common for non-root capture
+      ansible.builtin.debconf:
+        name: wireshark-common
+        question: wireshark-common/install-setuid
+        vtype: boolean
+        value: "true"
+
+    - name: Grant dumpcap the needed capabilities
+      ansible.builtin.command:
+        cmd: setcap cap_net_raw,cap_net_admin=eip /usr/bin/dumpcap
+      changed_when: false
+      failed_when: false
+
+    - name: Add the capture user to the wireshark group
+      ansible.builtin.user:
+        name: "{{ kali_capture_user }}"
+        groups: wireshark
+        append: true
+  tags: [attacker]
+
+- name: Initialise the Metasploit database (msfdb)
+  block:
+    - name: Ensure PostgreSQL is running
+      ansible.builtin.service:
+        name: postgresql
+        state: started
+        enabled: true
+      failed_when: false
+
+    - name: Run msfdb init (idempotent)
+      ansible.builtin.command:
+        cmd: msfdb init
+        creates: /home/{{ kali_capture_user }}/.msf4/database.yml
+      become: true
+      become_user: "{{ kali_capture_user }}"
+      failed_when: false
+  tags: [attacker]
+
+- name: Stage lab notes directory
+  ansible.builtin.file:
+    path: "{{ kali_notes_dir }}"
+    state: directory
+    owner: "{{ kali_capture_user }}"
+    group: "{{ kali_capture_user }}"
+    mode: "0755"
+  tags: [attacker]
+
+- name: Drop the target cheat-sheet
+  ansible.builtin.template:
+    src: TARGETS.md.j2
+    dest: "{{ kali_notes_dir }}/TARGETS.md"
+    owner: "{{ kali_capture_user }}"
+    group: "{{ kali_capture_user }}"
+    mode: "0644"
+  tags: [attacker]
+
+- name: Install the lab scan helper
+  ansible.builtin.template:
+    src: scan-lab.sh.j2
+    dest: "{{ kali_notes_dir }}/scan-lab.sh"
+    owner: "{{ kali_capture_user }}"
+    group: "{{ kali_capture_user }}"
+    mode: "0755"
+  tags: [attacker]
+
+- name: Install a sample Metasploit resource script
+  ansible.builtin.template:
+    src: recon.rc.j2
+    dest: "{{ kali_notes_dir }}/recon.rc"
+    owner: "{{ kali_capture_user }}"
+    group: "{{ kali_capture_user }}"
+    mode: "0644"
+  tags: [attacker]

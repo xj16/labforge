@@ -1,0 +1,12 @@
+---
+# Ansible collections used by labforge roles.
+# Install with:  ansible-galaxy collection install -r ansible/requirements.yml
+collections:
+  - name: community.general      # npm module (Juice Shop)
+    version: ">=8.0.0"
+  - name: community.mysql        # mysql_db / mysql_user (DVWA)
+    version: ">=3.8.0"
+  - name: community.docker       # docker_container (optional Juice Shop path)
+    version: ">=3.6.0"
+  - name: ansible.windows        # win_* modules (Windows victim)
+    version: ">=2.3.0"

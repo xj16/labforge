@@ -1,0 +1,76 @@
+---
+# common — baseline applied to every Linux host in the lab.
+#
+# Cross-distro by design: uses ansible.builtin.package where possible and
+# branches on ansible_os_family only for the isolation firewall (nftables
+# packaging differs). Nothing here reaches the internet by choice beyond the
+# initial package install performed via each box's local mirror.
+
+- name: Set a predictable hostname
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
+  tags: [common]
+
+- name: Ensure /etc/hosts has every lab machine
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '\s{{ item.key }}$'
+    line: "{{ item.value }} {{ item.key }} {{ item.key }}.{{ lab_domain }}"
+    state: present
+  loop: "{{ lab_hosts | dict2items }}"
+  loop_control:
+    label: "{{ item.key }} -> {{ item.value }}"
+  tags: [common]
+
+- name: Install baseline packages
+  ansible.builtin.package:
+    name: "{{ common_base_packages + common_extra_packages }}"
+    state: present
+  register: pkg_result
+  retries: 3
+  delay: 5
+  until: pkg_result is succeeded
+  tags: [common, packages]
+
+- name: Ensure rsyslog is enabled and running
+  ansible.builtin.service:
+    name: rsyslog
+    state: started
+    enabled: true
+  # Some minimal images ship systemd-journald only; don't hard-fail the whole
+  # run if rsyslog is genuinely unavailable — the log_forwarder role reports it.
+  failed_when: false
+  tags: [common, logging]
+
+# ---------------------------------------------------------------------------
+# Isolation safety rail: drop any egress that tries to leave the lab subnet.
+# This is defence-in-depth; the primary isolation is the absent NAT route.
+# ---------------------------------------------------------------------------
+- name: Enforce network isolation (nftables egress guard)
+  when: enforce_isolation | bool
+  tags: [common, isolation]
+  block:
+    - name: Install nftables
+      ansible.builtin.package:
+        name: nftables
+        state: present
+      register: nft_install
+      failed_when: false
+
+    - name: Deploy lab isolation ruleset
+      ansible.builtin.template:
+        src: labforge-isolation.nft.j2
+        dest: /etc/nftables-labforge.conf
+        owner: root
+        group: root
+        mode: "0644"
+      when: nft_install is not failed
+      notify: Reload labforge nftables
+
+    - name: Enable nftables service
+      ansible.builtin.service:
+        name: nftables
+        state: started
+        enabled: true
+      when: nft_install is not failed
+      failed_when: false

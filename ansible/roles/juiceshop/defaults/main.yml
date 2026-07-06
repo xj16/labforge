@@ -1,0 +1,13 @@
+---
+# juiceshop role defaults (overridable via group_vars/targets_web.yml).
+juiceshop_version: "v15.3.0"
+juiceshop_port: 3000
+juiceshop_user: juiceshop
+juiceshop_home: /opt/juice-shop
+# Install method:
+#   'npm'  — clone the pinned release + npm install (needs the box's npm mirror)
+#   'docker' — run the official bkimminich/juice-shop image (needs docker)
+# The lab is offline by design; 'npm' works from the box's own mirror snapshot,
+# docker requires you to pre-load the image. Default to npm.
+juiceshop_install_method: npm
+juiceshop_repo: "https://github.com/juice-shop/juice-shop.git"

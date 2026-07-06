@@ -1,0 +1,7 @@
+---
+- name: Restart juice-shop
+  ansible.builtin.systemd:
+    name: juice-shop
+    state: restarted
+    daemon_reload: true
+  failed_when: false

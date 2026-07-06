@@ -1,0 +1,30 @@
+# {{ ansible_managed }}
+# labforge central rsyslog collector.
+#
+# Listens for RFC5424 syslog over TCP on {{ splunk_syslog_port }} and writes one
+# file per sending host under {{ splunk_log_root }}/<hostname>/messages.log so
+# the web viewer can present per-host streams — the same mental model as a
+# Splunk index per source.
+
+# Load the TCP input module.
+module(load="imtcp")
+input(type="imtcp" port="{{ splunk_syslog_port }}")
+
+# Per-host template: {{ splunk_log_root }}/<fromhost>/messages.log
+template(name="LabforgePerHost" type="string"
+         string="{{ splunk_log_root }}/%HOSTNAME%/messages.log")
+
+# A readable one-line format with ISO timestamps.
+template(name="LabforgeLine" type="string"
+         string="%TIMESTAMP:::date-rfc3339% %HOSTNAME% %syslogtag%%msg:::sp-if-no-1st-sp%%msg:::drop-last-lf%\n")
+
+# Route every remote message to its per-host file, then stop so it does not
+# also land in the collector's own /var/log.
+if ($fromhost-ip != '127.0.0.1') then {
+    action(type="omfile"
+           dynaFile="LabforgePerHost"
+           template="LabforgeLine"
+           dirCreateMode="0755"
+           fileCreateMode="0644")
+    stop
+}

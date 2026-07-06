@@ -1,0 +1,91 @@
+---
+# labforge — top-level provisioning playbook
+#
+# Run automatically by Vagrant once every box is up, or by hand against a
+# running lab with:
+#   ansible-playbook -i inventory/hosts.ini site.yml
+#
+# Play order matters: the SIEM must exist before clients try to forward logs,
+# so it is provisioned first.
+
+# ---------------------------------------------------------------------------
+# 1. Baseline hardening + tooling on every Linux host
+# ---------------------------------------------------------------------------
+- name: Apply common baseline to all Linux hosts
+  hosts: linux
+  become: true
+  gather_facts: true
+  tags: [common]
+  roles:
+    - role: common
+
+# ---------------------------------------------------------------------------
+# 2. Centralized logging server (Splunk-style aggregation)
+# ---------------------------------------------------------------------------
+- name: Provision the SIEM / central log server
+  hosts: siem
+  become: true
+  gather_facts: true
+  tags: [siem]
+  roles:
+    - role: splunk
+
+# ---------------------------------------------------------------------------
+# 3. Point every client at the SIEM
+# ---------------------------------------------------------------------------
+- name: Configure log forwarding on all clients
+  hosts: log_clients
+  become: true
+  gather_facts: true
+  tags: [logging]
+  roles:
+    - role: log_forwarder
+
+# ---------------------------------------------------------------------------
+# 4. Attacker workstation
+# ---------------------------------------------------------------------------
+- name: Provision the Kali attacker box
+  hosts: attackers
+  become: true
+  gather_facts: true
+  tags: [attacker]
+  roles:
+    - role: kali
+
+# ---------------------------------------------------------------------------
+# 5. Deliberately-vulnerable web targets
+# ---------------------------------------------------------------------------
+- name: Deploy OWASP Juice Shop
+  hosts: targets_web
+  become: true
+  gather_facts: true
+  tags: [targets, juiceshop]
+  roles:
+    - role: juiceshop
+      when: juiceshop | default(false) | bool
+
+- name: Deploy DVWA
+  hosts: targets_web
+  become: true
+  gather_facts: true
+  tags: [targets, dvwa]
+  roles:
+    - role: dvwa
+      when: dvwa | default(false) | bool
+
+# ---------------------------------------------------------------------------
+# 6. Multi-distro fleet — no extra payload, just baseline + log forwarding
+#    (already covered by plays 1 and 3). This placeholder play makes the
+#    intent explicit and gives a spot to hang fleet-specific tasks later.
+# ---------------------------------------------------------------------------
+- name: Fleet nodes (baseline + logging only)
+  hosts: fleet
+  become: true
+  gather_facts: false
+  tags: [fleet]
+  tasks:
+    - name: Announce fleet node role
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} is a fleet node — baseline hardened and
+          forwarding logs to the SIEM at {{ siem_host }}:{{ siem_syslog_port }}.

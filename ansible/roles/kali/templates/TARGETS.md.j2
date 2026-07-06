@@ -1,0 +1,47 @@
+# labforge — target cheat-sheet
+<!-- {{ ansible_managed }} -->
+
+You are on the **attacker** box ({{ lab_hosts.attacker }}). Everything below is
+inside the isolated host-only lab. Attack ONLY these machines — they are yours
+and deliberately vulnerable. See the repo's ETHICS note.
+
+## Targets
+
+| Host   | IP                     | Service                    | URL / Port |
+|--------|------------------------|----------------------------|------------|
+| juice  | {{ lab_hosts.juice }}  | OWASP Juice Shop           | http://{{ lab_hosts.juice }}:3000 |
+| dvwa   | {{ lab_hosts.dvwa }}   | DVWA (admin/password)      | http://{{ lab_hosts.dvwa }}/ |
+| victim | {{ lab_hosts.victim }} | Windows 10 victim (opt-in) | SMB/RDP |
+
+## Infrastructure
+
+| Host | IP                    | Role                      |
+|------|-----------------------|---------------------------|
+| siem | {{ lab_hosts.siem }}  | Central logs (viewer :8000, syslog tcp {{ siem_syslog_port }}) |
+
+## First moves
+
+```bash
+# Discover + fingerprint the whole segment
+./scan-lab.sh
+
+# Metasploit recon (loads recon.rc)
+msfconsole -q -r recon.rc
+
+# Capture the segment in Wireshark (promisc is enabled on eth1)
+sudo wireshark -i eth1 &
+
+# Proxy a target's traffic through Burp: start Burp, set the target's
+# browser / your tooling to use http://{{ lab_hosts.attacker }}:8080
+burpsuite &
+```
+
+## Suggested learning path (OWASP-aligned)
+
+1. **Recon** — nmap sweep, service/version detection, dir busting.
+2. **Juice Shop** — walk the OWASP Top 10 challenges (broken auth, injection,
+   XSS, SSRF). Proxy through Burp; watch requests in the SIEM.
+3. **DVWA** — start at security level *low*, escalate to *medium*/*high* and
+   re-run the same attacks to see the mitigations.
+4. **Blue-team pivot** — open the SIEM viewer and search for your own attack
+   traffic (`Failed password`, `sqlmap`, `nikto`) to learn detection.

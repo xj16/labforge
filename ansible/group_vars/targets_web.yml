@@ -1,0 +1,16 @@
+---
+# Variables for the deliberately-vulnerable web target group.
+
+# Juice Shop (runs on the 'juice' host)
+juiceshop_version: "v15.3.0"
+juiceshop_port: 3000
+juiceshop_user: juiceshop
+
+# DVWA (runs on the 'dvwa' host)
+dvwa_port: 80
+dvwa_db_name: dvwa
+dvwa_db_user: dvwa
+# NOTE: this is an INTENTIONALLY weak, well-known credential. It is safe ONLY
+# because the lab has no route off the host-only network. Never reuse it.
+dvwa_db_password: "p@ssw0rd"
+dvwa_security_level: low

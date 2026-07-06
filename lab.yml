@@ -1,0 +1,29 @@
+# labforge topology configuration
+#
+# This file is the single source of truth for the lab network. Editing it
+# changes the Vagrantfile's behaviour without touching Ruby. Keep the subnet
+# in RFC1918 space and OFF any real network you care about.
+---
+network:
+  # Host-only segment. Must not collide with your real LAN or VirtualBox's
+  # default host-only ranges (192.168.56.0/24). 10.20.0.0/24 is a safe pick.
+  subnet: "10.20.0.0"
+  netmask: "255.255.255.0"
+  prefix: "10.20.0"
+
+defaults:
+  cpus: 2
+  memory: 1024
+
+# Static host addresses (last octet). These are mirrored in the Vagrantfile
+# machine catalogue and the Ansible inventory — keep the three in sync.
+hosts:
+  attacker: 10
+  siem: 20
+  juice: 31
+  dvwa: 32
+  victim: 40
+  deb: 51
+  ubuntu: 52
+  fedora: 53
+  arch: 54

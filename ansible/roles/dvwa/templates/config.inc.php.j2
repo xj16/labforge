@@ -1,0 +1,21 @@
+<?php
+# {{ ansible_managed }}
+# labforge DVWA configuration. Deliberately insecure — isolated lab only.
+
+$_DVWA = array();
+$_DVWA[ 'db_server' ]   = '127.0.0.1';
+$_DVWA[ 'db_database' ] = '{{ dvwa_db_name }}';
+$_DVWA[ 'db_user' ]     = '{{ dvwa_db_user }}';
+$_DVWA[ 'db_password' ] = '{{ dvwa_db_password }}';
+$_DVWA[ 'db_port' ]     = '3306';
+
+# Default security level for freshly-seeded sessions.
+$_DVWA[ 'default_security_level' ] = '{{ dvwa_security_level }}';
+
+# reCAPTCHA disabled — no internet in the lab.
+$_DVWA[ 'recaptcha_public_key' ]  = '';
+$_DVWA[ 'recaptcha_private_key' ] = '';
+
+# Default PHIDs.
+$_DVWA[ 'default_phpids_level' ]   = 'disabled';
+$_DVWA[ 'default_phpids_verbose' ] = 'false';

@@ -1,0 +1,12 @@
+---
+- name: Restart rsyslog
+  ansible.builtin.service:
+    name: rsyslog
+    state: restarted
+
+- name: Restart labforge logviewer
+  ansible.builtin.systemd:
+    name: labforge-logviewer
+    state: restarted
+    daemon_reload: true
+  failed_when: false

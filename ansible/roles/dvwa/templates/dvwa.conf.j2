@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+<VirtualHost *:{{ dvwa_port }}>
+    ServerName dvwa.{{ lab_domain }}
+    DocumentRoot {{ dvwa_docroot }}
+
+    <Directory {{ dvwa_docroot }}>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    ErrorLog ${APACHE_LOG_DIR}/dvwa-error.log
+    CustomLog ${APACHE_LOG_DIR}/dvwa-access.log combined
+</VirtualHost>

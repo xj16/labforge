@@ -1,0 +1,38 @@
+---
+# labforge global variables (apply to every host unless overridden)
+
+# --- Network -----------------------------------------------------------------
+lab_network_prefix: "10.20.0"
+lab_domain: "lab.local"
+
+# Static addresses, mirrored from lab.yml. Roles reference these by name rather
+# than hardcoding IPs so the topology stays in one place.
+lab_hosts:
+  attacker: "10.20.0.10"
+  siem: "10.20.0.20"
+  juice: "10.20.0.31"
+  dvwa: "10.20.0.32"
+  victim: "10.20.0.40"
+
+# --- Centralized logging -----------------------------------------------------
+# The SIEM listens for syslog (RFC5424) over TCP. Every log_client forwards
+# here via rsyslog. This is a free, Splunk-style aggregation path — if you own
+# a Splunk license you can point a Universal Forwarder at the same host:port.
+siem_host: "{{ lab_hosts.siem }}"
+siem_syslog_port: 5514
+siem_data_dir: /opt/labforge-siem
+
+# --- Isolation safety rails --------------------------------------------------
+# When true, the common role installs an nftables ruleset that DROPs any egress
+# leaving the lab subnet — belt-and-braces on top of the missing NAT route.
+enforce_isolation: true
+lab_subnet_cidr: "10.20.0.0/24"
+
+# --- Baseline packages installed on every Linux host -------------------------
+common_base_packages:
+  - curl
+  - vim
+  - htop
+  - tcpdump
+  - net-tools
+  - rsyslog

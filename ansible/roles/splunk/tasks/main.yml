@@ -1,0 +1,119 @@
+---
+# splunk — centralized log server (SIEM) for the lab.
+#
+# Two mutually-exclusive paths:
+#   * default (free): rsyslog collector + a tiny web log viewer.
+#   * splunk_use_real_splunk=true: install a licensed Splunk .deb you staged.
+
+- name: Ensure SIEM data directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ splunk_data_dir }}"
+    - "{{ splunk_log_root }}"
+  tags: [siem]
+
+# ---------------------------------------------------------------------------
+# Free path — rsyslog central collector
+# ---------------------------------------------------------------------------
+- name: Configure rsyslog as a central collector (free path)
+  when: not (splunk_use_real_splunk | bool)
+  tags: [siem]
+  block:
+    - name: Install rsyslog
+      ansible.builtin.package:
+        name: rsyslog
+        state: present
+
+    - name: Deploy central-collector rsyslog config
+      ansible.builtin.template:
+        src: 10-labforge-collector.conf.j2
+        dest: /etc/rsyslog.d/10-labforge-collector.conf
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart rsyslog
+
+    - name: Ensure rsyslog is running and enabled
+      ansible.builtin.service:
+        name: rsyslog
+        state: started
+        enabled: true
+
+# ---------------------------------------------------------------------------
+# Free path — tiny web log viewer (Python stdlib, no external deps)
+# ---------------------------------------------------------------------------
+- name: Deploy the labforge web log viewer (free path)
+  when:
+    - not (splunk_use_real_splunk | bool)
+    - splunk_web_enabled | bool
+  tags: [siem, web]
+  block:
+    - name: Install the log-viewer script
+      ansible.builtin.template:
+        src: logviewer.py.j2
+        dest: "{{ splunk_data_dir }}/logviewer.py"
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Install the log-viewer systemd unit
+      ansible.builtin.template:
+        src: labforge-logviewer.service.j2
+        dest: /etc/systemd/system/labforge-logviewer.service
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart labforge logviewer
+
+    - name: Enable and start the log viewer
+      ansible.builtin.systemd:
+        name: labforge-logviewer
+        state: started
+        enabled: true
+        daemon_reload: true
+
+# ---------------------------------------------------------------------------
+# Licensed path — real Splunk Enterprise from a staged .deb
+# ---------------------------------------------------------------------------
+- name: Install real Splunk Enterprise (licensed path)
+  when: splunk_use_real_splunk | bool
+  tags: [siem, splunk]
+  block:
+    - name: Verify the staged Splunk package exists
+      ansible.builtin.stat:
+        path: "{{ splunk_deb_path }}"
+      register: splunk_pkg
+
+    - name: Fail with guidance if the package is missing
+      ansible.builtin.fail:
+        msg: >-
+          splunk_use_real_splunk is true but no package was found at
+          {{ splunk_deb_path }}. Download Splunk Enterprise (free trial or your
+          own license) on the HOST, drop the .deb there, and re-run. The lab is
+          offline by design so it cannot fetch it for you.
+      when: not splunk_pkg.stat.exists
+
+    - name: Install the Splunk package
+      ansible.builtin.apt:
+        deb: "{{ splunk_deb_path }}"
+        state: present
+      when: splunk_pkg.stat.exists
+
+    - name: Enable Splunk boot-start and accept license
+      ansible.builtin.command:
+        cmd: /opt/splunk/bin/splunk enable boot-start --accept-license --no-prompt --answer-yes
+        creates: /etc/systemd/system/Splunkd.service
+      when: splunk_pkg.stat.exists
+
+- name: Print SIEM access summary
+  ansible.builtin.debug:
+    msg:
+      - "labforge SIEM is up on {{ ansible_default_ipv4.address | default(siem_host) }}"
+      - "Syslog collector (TCP): port {{ splunk_syslog_port }}"
+      - "{{ 'Splunk Web: https://<siem>:8000' if (splunk_use_real_splunk | bool) else 'Log viewer: http://' ~ siem_host ~ ':' ~ splunk_web_port }}"
+  tags: [siem]

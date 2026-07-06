@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+#
+# scan-lab.sh — quick recon of the labforge segment from the attacker box.
+# Purely educational, run only against the lab you own.
+set -euo pipefail
+
+SUBNET="{{ lab_network_prefix }}.0/24"
+OUTDIR="{{ kali_notes_dir }}/scans"
+mkdir -p "$OUTDIR"
+STAMP="$(date +%Y%m%d-%H%M%S)"
+
+echo "[*] labforge recon — subnet ${SUBNET}"
+
+echo "[*] Host discovery (ping sweep)..."
+nmap -sn "$SUBNET" -oG "$OUTDIR/discovery-$STAMP.gnmap" | tee "$OUTDIR/discovery-$STAMP.txt"
+
+echo "[*] Service/version scan of the known targets..."
+TARGETS="{{ lab_hosts.juice }} {{ lab_hosts.dvwa }} {{ lab_hosts.victim }}"
+# shellcheck disable=SC2086
+nmap -sV -sC -T4 -p- $TARGETS -oN "$OUTDIR/services-$STAMP.txt" || true
+
+echo "[*] Done. Results in $OUTDIR"
+echo "    Next: msfconsole -q -r {{ kali_notes_dir }}/recon.rc"

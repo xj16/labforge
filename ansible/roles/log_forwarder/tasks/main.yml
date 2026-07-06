@@ -1,0 +1,40 @@
+---
+# log_forwarder — ship this host's syslog to the central SIEM.
+
+- name: Ensure rsyslog is installed
+  ansible.builtin.package:
+    name: rsyslog
+    state: present
+  tags: [logging]
+
+- name: Ensure the rsyslog spool directory exists
+  ansible.builtin.file:
+    path: "{{ forwarder_queue_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  tags: [logging]
+
+- name: Deploy the SIEM forwarding config
+  ansible.builtin.template:
+    src: 90-labforge-forward.conf.j2
+    dest: /etc/rsyslog.d/90-labforge-forward.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart rsyslog client
+  tags: [logging]
+
+- name: Ensure rsyslog is running and enabled
+  ansible.builtin.service:
+    name: rsyslog
+    state: started
+    enabled: true
+  tags: [logging]
+
+- name: Emit a marker event so the host shows up in the SIEM immediately
+  ansible.builtin.command:
+    cmd: logger -t labforge "log forwarding online from {{ inventory_hostname }}"
+  changed_when: false
+  tags: [logging]

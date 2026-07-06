@@ -1,0 +1,11 @@
+---
+# dvwa role defaults (overridable via group_vars/targets_web.yml).
+dvwa_repo: "https://github.com/digininja/DVWA.git"
+dvwa_version: "master"
+dvwa_docroot: /var/www/html/dvwa
+dvwa_port: 80
+dvwa_db_name: dvwa
+dvwa_db_user: dvwa
+# INTENTIONALLY weak — safe only because the lab is air-gapped. Never reuse.
+dvwa_db_password: "p@ssw0rd"
+dvwa_security_level: low

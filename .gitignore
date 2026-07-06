@@ -1,0 +1,50 @@
+# --- Vagrant / VirtualBox ---------------------------------------------------
+.vagrant/
+*.box
+*.vdi
+*.vmdk
+*.ova
+
+# --- labforge runtime artefacts --------------------------------------------
+# per-run scan output staged on the attacker box (if ever synced back)
+scans/
+*.pcap
+*.pcapng
+# staged licensed Splunk package (never commit binaries/licenses)
+splunk.deb
+ansible/roles/splunk/files/splunk.deb
+
+# --- Ansible ----------------------------------------------------------------
+*.retry
+ansible/collections/
+ansible/*.log
+.ansible/
+
+# --- Node (Juice Shop is cloned into a VM, never here, but just in case) ----
+node_modules/
+dist/
+build/
+
+# --- Python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# --- Build output / compiled -----------------------------------------------
+target/
+bin/
+obj/
+
+# --- Logs & temp ------------------------------------------------------------
+*.log
+*.tmp
+*.swp
+
+# --- OS / editor cruft ------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*~

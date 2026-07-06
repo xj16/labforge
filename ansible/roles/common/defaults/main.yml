@@ -1,0 +1,4 @@
+---
+# Defaults for the common baseline role. Override in group_vars if needed.
+common_timezone: "UTC"
+common_extra_packages: []

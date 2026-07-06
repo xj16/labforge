@@ -1,0 +1,35 @@
+# ansible-lint configuration for labforge
+# https://ansible.readthedocs.io/projects/lint/configuring/
+---
+profile: basic
+
+exclude_paths:
+  - .github/
+  - .cache/
+  - docs/
+
+# Jinja templates for non-Ansible configs (nftables, php, systemd units) live
+# under roles' templates/ and are not Ansible YAML — the template files are not
+# linted as playbooks by default, so nothing to exclude there.
+
+skip_list:
+  # We intentionally ship weak, well-documented lab credentials in defaults;
+  # they are safe only inside the air-gapped lab (see ETHICS.md).
+  - no-log-password
+  # Some cross-distro package tasks legitimately have no explicit version pin
+  # (we want "latest from the box's own mirror").
+  - package-latest
+  # command/shell usage is deliberate for msfdb init, a2ensite, nft reload etc.
+  - command-instead-of-module
+
+warn_list:
+  - experimental
+  - yaml[line-length]
+
+# Treat these as the Ansible files to analyze.
+kinds:
+  - playbook: "ansible/site.yml"
+  - tasks: "ansible/roles/**/tasks/*.yml"
+  - handlers: "ansible/roles/**/handlers/*.yml"
+  - vars: "ansible/roles/**/defaults/*.yml"
+  - vars: "ansible/group_vars/*.yml"

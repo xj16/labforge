@@ -1,0 +1,22 @@
+# {{ ansible_managed }}
+[Unit]
+Description=OWASP Juice Shop (labforge deliberately-vulnerable target)
+After=network.target
+
+[Service]
+Type=simple
+User={{ juiceshop_user }}
+WorkingDirectory={{ juiceshop_home }}
+Environment=NODE_ENV=unsafe
+Environment=PORT={{ juiceshop_port }}
+# `npm start` is the version-stable entrypoint (it runs build/app.js under the
+# hood and works across Juice Shop releases).
+ExecStart=/usr/bin/npm start --prefix {{ juiceshop_home }}
+Restart=on-failure
+RestartSec=5
+# It's a vulnerable app on purpose, but still confine what it can touch.
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

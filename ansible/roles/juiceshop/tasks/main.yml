@@ -1,0 +1,93 @@
+---
+# juiceshop — deploy OWASP Juice Shop, the reference deliberately-vulnerable
+# web app, as a systemd service on the target host.
+
+- name: Create the juiceshop service user
+  ansible.builtin.user:
+    name: "{{ juiceshop_user }}"
+    system: true
+    shell: /usr/sbin/nologin
+    home: "{{ juiceshop_home }}"
+    create_home: false
+  tags: [juiceshop]
+
+# ---------------------------------------------------------------------------
+# npm install path (default)
+# ---------------------------------------------------------------------------
+- name: Install Juice Shop from source (npm path)
+  when: juiceshop_install_method == 'npm'
+  tags: [juiceshop]
+  block:
+    - name: Install Node.js and git
+      ansible.builtin.apt:
+        name:
+          - nodejs
+          - npm
+          - git
+        state: present
+        update_cache: true
+
+    - name: Clone the pinned Juice Shop release
+      ansible.builtin.git:
+        repo: "{{ juiceshop_repo }}"
+        dest: "{{ juiceshop_home }}"
+        version: "{{ juiceshop_version }}"
+        depth: 1
+      register: js_clone
+
+    - name: Install Juice Shop dependencies
+      community.general.npm:
+        path: "{{ juiceshop_home }}"
+        production: true
+        state: present
+      when: js_clone is changed
+
+    - name: Own the install tree
+      ansible.builtin.file:
+        path: "{{ juiceshop_home }}"
+        state: directory
+        recurse: true
+        owner: "{{ juiceshop_user }}"
+        group: "{{ juiceshop_user }}"
+
+    - name: Install the Juice Shop systemd unit
+      ansible.builtin.template:
+        src: juice-shop.service.j2
+        dest: /etc/systemd/system/juice-shop.service
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Restart juice-shop
+
+    - name: Enable and start Juice Shop
+      ansible.builtin.systemd:
+        name: juice-shop
+        state: started
+        enabled: true
+        daemon_reload: true
+
+# ---------------------------------------------------------------------------
+# docker path (opt-in)
+# ---------------------------------------------------------------------------
+- name: Install Juice Shop via Docker (opt-in path)
+  when: juiceshop_install_method == 'docker'
+  tags: [juiceshop]
+  block:
+    - name: Ensure Docker is installed
+      ansible.builtin.package:
+        name: docker.io
+        state: present
+
+    - name: Run the Juice Shop container
+      community.docker.docker_container:
+        name: juice-shop
+        image: "bkimminich/juice-shop:{{ juiceshop_version }}"
+        state: started
+        restart_policy: unless-stopped
+        published_ports:
+          - "{{ juiceshop_port }}:3000"
+
+- name: Report Juice Shop URL
+  ansible.builtin.debug:
+    msg: "OWASP Juice Shop -> http://{{ ansible_default_ipv4.address | default(lab_hosts.juice) }}:{{ juiceshop_port }}"
+  tags: [juiceshop]

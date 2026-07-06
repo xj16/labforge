@@ -7,7 +7,7 @@
 # that a NAT interface leaked in — investigate before doing anything offensive.
 #
 set -uo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 
 BOXES=(attacker siem juice dvwa deb ubuntu fedora arch)
 FAILURES=0

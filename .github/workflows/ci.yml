@@ -83,7 +83,10 @@ jobs:
         shell: pwsh
         run: |
           Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
-          $issues = Invoke-ScriptAnalyzer -Path ./windows -Recurse -Severity Error
+          # Settings file documents an intentional rule exclusion for the
+          # deliberately-weak lab accounts — see windows/PSScriptAnalyzerSettings.psd1.
+          $issues = Invoke-ScriptAnalyzer -Path ./windows -Recurse `
+            -Settings ./windows/PSScriptAnalyzerSettings.psd1
           $issues | Format-Table -AutoSize
           if ($issues.Count -gt 0) {
             Write-Error "PSScriptAnalyzer found $($issues.Count) error-level issue(s)."

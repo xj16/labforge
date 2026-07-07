@@ -1,14 +1,26 @@
 # {{ ansible_managed }}
 # labforge central rsyslog collector.
 #
-# Listens for RFC5424 syslog over TCP on {{ splunk_syslog_port }} and writes one
-# file per sending host under {{ splunk_log_root }}/<hostname>/messages.log so
-# the web viewer can present per-host streams — the same mental model as a
+# Listens for syslog on {{ splunk_syslog_port }} over BOTH transports and writes
+# one file per sending host under {{ splunk_log_root }}/<hostname>/messages.log
+# so the web viewer can present per-host streams — the same mental model as a
 # Splunk index per source.
+#
+# Why both TCP and UDP:
+#   * Linux clients forward over TCP (@@) with a disk-assisted queue — reliable,
+#     no event loss on a brief SIEM outage (see log_forwarder role).
+#   * The Windows victim's pure-PowerShell forwarder ships RFC3164 over UDP
+#     (.NET UdpClient — no NXLog/Winlogbeat dependency). Without imudp here,
+#     Windows 4624/4625 events would silently never arrive. This dual input is
+#     the fix for that mismatch.
 
-# Load the TCP input module.
+# TCP input (reliable Linux forwarders).
 module(load="imtcp")
 input(type="imtcp" port="{{ splunk_syslog_port }}")
+
+# UDP input (the dependency-free Windows event forwarder).
+module(load="imudp")
+input(type="imudp" port="{{ splunk_syslog_port }}")
 
 # Per-host template: {{ splunk_log_root }}/<fromhost>/messages.log
 template(name="LabforgePerHost" type="string"

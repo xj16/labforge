@@ -15,9 +15,11 @@ lab_hosts:
   victim: "10.20.0.40"
 
 # --- Centralized logging -----------------------------------------------------
-# The SIEM listens for syslog (RFC5424) over TCP. Every log_client forwards
-# here via rsyslog. This is a free, Splunk-style aggregation path — if you own
-# a Splunk license you can point a Universal Forwarder at the same host:port.
+# The SIEM listens for syslog on this port over BOTH TCP and UDP. Linux clients
+# forward reliably over TCP (@@) via rsyslog; the Windows victim's dependency-
+# free PowerShell forwarder ships over UDP. This is a free, Splunk-style
+# aggregation path — if you own a Splunk license you can point a Universal
+# Forwarder at the same host:port.
 siem_host: "{{ lab_hosts.siem }}"
 siem_syslog_port: 5514
 siem_data_dir: /opt/labforge-siem

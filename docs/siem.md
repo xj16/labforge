@@ -19,30 +19,63 @@ half of the lab: watch your own attacks land in the logs and practice detection.
                                         log viewer  http://10.20.0.20:8000
 ```
 
-- **Collector:** rsyslog on the SIEM listens on TCP `5514` and writes one file
-  per source host (a Splunk "index per source" mental model).
-- **Viewer:** a dependency-free Python web app (`logviewer.py`) at
-  `http://10.20.0.20:8000` — host list, per-host tail, and cross-host search.
+- **Collector:** rsyslog on the SIEM listens on `5514` over **both TCP and
+  UDP** and writes one file per source host (a Splunk "index per source" mental
+  model). Linux clients use TCP with a disk-buffered queue; the Windows victim's
+  pure-PowerShell forwarder ships over UDP — both land in the same per-host file.
+- **Viewer + detection engine:** a dependency-free Python web app
+  (`labforge_siem`, deployed to `/opt/labforge-siem/viewer`) at
+  `http://10.20.0.20:8000` — host list, per-host tail, cross-host search, and a
+  built-in **detection ruleset** (see below) that flags brute-force, port
+  sweeps, sqlmap and nikto scans automatically.
 
 ## Using the viewer
 
 Open <http://10.20.0.20:8000> from your host browser (host-only network is
-reachable from the host). Try searches that surface attacks:
+reachable from the host). The dashboard shows a per-host grid, one-click **saved
+searches**, and — the important part — an **alerts panel** that names attacks
+automatically. When something high-severity fires, a red banner appears at the
+top; click through to `/alerts` for the full list.
+
+One-click saved searches (also work as free-text search):
 
 | Search term         | Finds |
 |---------------------|-------|
 | `Failed password`   | SSH / login brute-force attempts |
+| `EventID=4625`      | Windows failed logons (from the victim) |
 | `sqlmap`            | sqlmap's default User-Agent hitting a target |
 | `nikto`             | nikto web scans |
-| `EventID=4625`      | Windows failed logons (from the victim) |
+| `dpt=`              | nmap port-sweep firewall hits |
 | `labforge`          | lab marker events + forwarder heartbeats |
 
-The same data is available as JSON:
+The same data — and the detections — are available as JSON:
 
 ```bash
 curl http://10.20.0.20:8000/api/hosts
 curl 'http://10.20.0.20:8000/api/tail/dvwa?n=100'
+curl http://10.20.0.20:8000/api/detections   # named findings, worst first
+curl http://10.20.0.20:8000/healthz          # liveness probe
 ```
+
+## Built-in detections
+
+The viewer ships a small, pure-Python detection engine (`labforge_siem`) so the
+blue-team half is a real **detection lab**, not just a log grep. Each rule
+recognizes an attack's log *signature* and raises a finding with a severity and
+a MITRE ATT&CK technique id:
+
+| Rule | Severity | ATT&CK | Signature it matches |
+|------|----------|--------|----------------------|
+| RDP/Windows brute force | high | T1110 | ≥5 Windows `EventID=4625` from one source |
+| SSH brute force | high | T1110 | ≥5 `Failed password` from one source |
+| Logon after brute force | critical | T1110 | a `4624` success on a host that just saw a `4625` storm |
+| nmap port sweep | medium | T1046 | one source touching ≥15 distinct `DPT=` ports |
+| sqlmap injection scan | high | T1190 | the `sqlmap` User-Agent in access logs |
+| nikto web scan | medium | T1595 | the `nikto` scanner fingerprint |
+
+The exact same engine powers the [live browser demo](../demo/index.html) and is
+covered by the flagship test suite (`siem/tests`), so what CI proves is what the
+lab actually runs.
 
 ## Bring your own real Splunk (optional)
 

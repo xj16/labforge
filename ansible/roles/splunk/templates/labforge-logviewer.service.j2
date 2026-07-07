@@ -1,11 +1,14 @@
 # {{ ansible_managed }}
 [Unit]
-Description=labforge SIEM log viewer
+Description=labforge SIEM viewer + detection engine
 After=network.target rsyslog.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 {{ splunk_data_dir }}/logviewer.py
+Environment=LABFORGE_LOG_ROOT={{ splunk_log_root }}
+Environment=LABFORGE_WEB_PORT={{ splunk_web_port }}
+Environment=LABFORGE_SYSLOG_PORT={{ splunk_syslog_port }}
+ExecStart=/usr/bin/python3 {{ splunk_viewer_dir }}/run_logviewer.py
 Restart=on-failure
 RestartSec=3
 # Read-only, unprivileged hardening — it only ever reads the log tree.

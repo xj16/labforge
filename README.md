@@ -1,10 +1,22 @@
 # labforge
 
-**One-command reproducible security homelab.** Infrastructure-as-code that spins
-up an *isolated, host-only, no-internet* pentest lab in Vagrant + VirtualBox: a
-Kali attacker box, deliberately-vulnerable OWASP web targets, a Windows victim, a
-multi-distro Linux fleet, and a free Splunk-style centralized log server — all
-provisioned by Ansible.
+**One command → an isolated, air-gapped pentest range with a detection SIEM.**
+
+Infrastructure-as-code that spins up a *host-only, no-internet* security lab in
+Vagrant + VirtualBox — a Kali attacker, deliberately-vulnerable OWASP web
+targets, a Windows victim, a multi-distro Linux fleet, and a free, **Splunk-style
+central SIEM with a built-in detection engine** — all provisioned by Ansible.
+Red team on one side, blue team watching the logs on the other, and an isolation
+gate that fails loudly if anything can reach the internet.
+
+[![CI](https://github.com/xj16/labforge/actions/workflows/ci.yml/badge.svg)](https://github.com/xj16/labforge/actions/workflows/ci.yml)
+[![coverage](siem/coverage.svg)](siem/)
+![Ansible](https://img.shields.io/badge/Ansible-6%20roles-1f7a8c)
+![deps](https://img.shields.io/badge/SIEM%20deps-stdlib%20only-4fc3d7)
+[![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+> 🔍 **[Try the SIEM detection dashboard in your browser — no VMs](demo/index.html)**
+> — the exact detection engine the lab ships, running on a canned attack corpus.
 
 > ⚠️ **Strictly educational and defensive.** This lab is air-gapped and meant for
 > practicing security skills on machines *you own*. **Read
@@ -12,9 +24,15 @@ provisioned by Ansible.
 
 ```bash
 git clone https://github.com/xj16/labforge && cd labforge
-scripts/lab-up.sh --minimal      # attacker + siem + Juice Shop (fastest)
-scripts/verify-isolation.sh      # prove it can't reach the internet
+scripts/lab-up.sh --minimal      # attacker + siem + Juice Shop; auto-verifies isolation
 ```
+
+`lab-up.sh` provisions the range and then runs a multi-vector air-gap check
+automatically — it won't print "ready" if any box can reach the internet.
+
+<p align="center">
+  <img src="docs/architecture.svg" alt="labforge topology: attacker → targets → SIEM inside a host-only segment, egress blocked by an nftables/Windows-Firewall guard" width="880">
+</p>
 
 ---
 
@@ -55,9 +73,12 @@ Full address plan and diagram: [docs/topology.md](docs/topology.md).
   configure every service for real (Metasploit DB init, Juice Shop as a systemd
   service, DVWA seeded end-to-end, rsyslog central collector, per-host log
   files, a working web log viewer).
-- **Blue-team built in.** Every box forwards syslog to the SIEM; the Windows
-  victim ships Security events (4624/4625/...) via a pure-PowerShell UDP syslog
-  forwarder. Search your own attacks at `http://10.20.0.20:8000`.
+- **Blue-team detection lab, built in.** Every box forwards syslog to the SIEM
+  (Linux over reliable TCP, the Windows victim over UDP — the collector accepts
+  both). The SIEM isn't just a log viewer: a stdlib-only **detection engine**
+  flags brute force, port sweeps, and sqlmap/nikto scans automatically, ranked
+  by severity and mapped to MITRE ATT&CK, with an alert banner and highlighted
+  evidence at `http://10.20.0.20:8000`. **[See it live, no VMs →](demo/index.html)**
 - **Red-team ready.** Kali comes pre-loaded with a `scan-lab.sh` recon script, a
   Metasploit `recon.rc` resource file, non-root packet capture, and a target
   cheat-sheet.
@@ -128,6 +149,37 @@ Vagrantfile (reads lab.yml)
 Provisioning order matters — the SIEM comes up before clients try to forward, so
 `site.yml` sequences the plays accordingly.
 
+The SIEM's detection engine and viewer live in [`siem/`](siem/) as a real,
+tested Python package (`labforge_siem`) — the same code the tests cover, the
+Ansible role deploys, and the browser demo runs. That means the blue-team half
+isn't a scaffold: it's exercised end-to-end by CI.
+
+## Live demo (no VMs)
+
+The whole SIEM dashboard runs in the browser against a canned attack corpus:
+**[demo/index.html](demo/index.html)**. Host grid, per-host drilldown with
+highlighted attack evidence, cross-host search, a severity chart, and the
+automatic detections — all client-side, zero dependencies. The corpus and its
+findings are generated from the real engine (`python demo/build_demo.py`), so
+the demo can't disagree with the lab. Run it locally with `make demo`.
+
+## Testing
+
+The SIEM package ships a flagship pytest suite (parser, path-traversal-safe
+store, every detection rule, and the live HTTP server) at ~95% line+branch
+coverage, gated in CI.
+
+```bash
+cd siem
+pip install -r requirements-dev.txt
+make -C .. coverage          # or: coverage run -m pytest && coverage report
+```
+
+VirtualBox can't run in GitHub Actions, so CI proves everything that *can* be
+proven without a hypervisor: the detection engine and viewer (pytest +
+coverage), Ansible (ansible-lint + syntax check), shell (ShellCheck), and the
+Windows scripts (PSScriptAnalyzer).
+
 ### Provisioning on Windows
 
 The default flow runs Ansible **from the host**, which needs a POSIX Ansible
@@ -154,16 +206,20 @@ only where the control node runs differs.
 - [docs/walkthrough.md](docs/walkthrough.md) — a guided first hour
 - [docs/wireshark.md](docs/wireshark.md) — capturing lab traffic
 - [docs/burp.md](docs/burp.md) — proxying targets through Burp Suite
-- [docs/siem.md](docs/siem.md) — the centralized logging setup + real-Splunk path
+- [docs/siem.md](docs/siem.md) — centralized logging, the detection rules, real-Splunk path
+- [siem/README.md](siem/README.md) — the SIEM package internals + how to test it
+- [CHANGELOG.md](CHANGELOG.md) — release history (Keep a Changelog)
 
 ## Tech stack
 
 **Vagrant** + **VirtualBox** (IaC / virtualization) · **Ansible** (provisioning,
 6 roles) · **Bash** & **PowerShell** (bootstrap, helpers, Windows victim) ·
 **Kali Linux** with **Metasploit**, **Wireshark**, **Burp Suite** (red team) ·
-**OWASP** Juice Shop & DVWA (targets) · **rsyslog** + Python stdlib web viewer,
-**Splunk**-compatible (blue team) · **nftables** (isolation) · **GitHub Actions**
-(ansible-lint + yamllint CI).
+**OWASP** Juice Shop & DVWA (targets) · **rsyslog** (TCP+UDP) + a stdlib-only
+**Python detection engine + web viewer**, **Splunk**-compatible (blue team) ·
+**pytest** + **coverage** (95%+, gated) · **nftables** (isolation) ·
+**GitHub Actions** (pytest/coverage + ansible-lint + yamllint + ShellCheck +
+PSScriptAnalyzer).
 
 ## Repository layout
 
@@ -171,7 +227,7 @@ only where the control node runs differs.
 labforge/
 ├── Vagrantfile              # data-driven multi-machine definition
 ├── lab.yml                  # topology source of truth
-├── Makefile                 # convenience targets
+├── Makefile                 # convenience targets (up, test, coverage, demo, verify)
 ├── ansible/
 │   ├── site.yml             # top-level playbook
 │   ├── ansible.cfg
@@ -179,9 +235,14 @@ labforge/
 │   ├── inventory/hosts.ini
 │   ├── group_vars/
 │   └── roles/               # common, splunk, log_forwarder, kali, juiceshop, dvwa
+├── siem/                    # the SIEM viewer + detection engine (tested Python pkg)
+│   ├── labforge_siem/       # parser · detections · store · app · corpus
+│   ├── tests/               # flagship pytest suite (95%+ coverage)
+│   └── run_logviewer.py     # entrypoint deployed to the SIEM box
+├── demo/                    # VM-free in-browser SIEM demo (index.html + data.js)
 ├── windows/                 # Windows victim provisioner + syslog forwarder
 ├── scripts/                 # bootstrap, lab-up, lab-status, verify-isolation
-└── docs/                    # topology, walkthrough, wireshark, burp, siem
+└── docs/                    # topology, walkthrough, wireshark, burp, siem, architecture.svg
 ```
 
 ## Contributing

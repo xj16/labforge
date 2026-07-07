@@ -1,0 +1,13 @@
+[run]
+source = labforge_siem
+branch = True
+omit =
+    labforge_siem/__main__.py
+
+[report]
+show_missing = True
+skip_covered = False
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
+    def serve

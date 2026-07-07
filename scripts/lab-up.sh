@@ -46,8 +46,26 @@ echo "[labforge] bringing the lab up (windows=$WIN fleet=$FLEET minimal=$MINIMAL
 echo "[labforge] this pulls community boxes on first run; grab a coffee."
 vagrant up
 
+# ---------------------------------------------------------------------------
+# Isolation gate: prove the lab is air-gapped BEFORE telling the user it's
+# ready. If any box can reach the internet, fail loudly and do not print the
+# "go attack" banner — a leaking lab is a safety problem, not a success.
+# Skippable with LABFORGE_SKIP_VERIFY=1 for iteration on the provisioning path.
+# ---------------------------------------------------------------------------
+if [ "${LABFORGE_SKIP_VERIFY:-0}" != "1" ]; then
+  echo
+  echo "[labforge] verifying isolation (multi-vector egress probe)..."
+  if ! scripts/verify-isolation.sh; then
+    echo >&2
+    echo "[labforge] ISOLATION CHECK FAILED — a box reached the internet." >&2
+    echo "[labforge] Do NOT run any offensive tooling. Investigate the leaking" >&2
+    echo "[labforge] box's NICs (a stray NAT interface is the usual cause)." >&2
+    exit 1
+  fi
+fi
+
 echo
-echo "[labforge] lab is up. Try:"
+echo "[labforge] lab is up and verified isolated. Try:"
 echo "  scripts/lab-status.sh"
 echo "  vagrant ssh attacker    # then: cd ~/labforge && ./scan-lab.sh"
-echo "  open http://10.20.0.20:8000   # SIEM log viewer"
+echo "  open http://10.20.0.20:8000   # SIEM detection viewer"

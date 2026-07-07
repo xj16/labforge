@@ -47,19 +47,38 @@
 # ---------------------------------------------------------------------------
 # Free path — tiny web log viewer (Python stdlib, no external deps)
 # ---------------------------------------------------------------------------
-- name: Deploy the labforge web log viewer (free path)
+- name: Deploy the labforge SIEM viewer + detection engine (free path)
   when:
     - not (splunk_use_real_splunk | bool)
     - splunk_web_enabled | bool
   tags: [siem, web]
   block:
-    - name: Install the log-viewer script
-      ansible.builtin.template:
-        src: logviewer.py.j2
-        dest: "{{ splunk_data_dir }}/logviewer.py"
+    - name: Ensure the viewer install directory exists
+      ansible.builtin.file:
+        path: "{{ splunk_viewer_dir }}"
+        state: directory
         owner: root
         group: root
         mode: "0755"
+
+    - name: Sync the labforge_siem Python package (real, tested code)
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../siem/labforge_siem/"
+        dest: "{{ splunk_viewer_dir }}/labforge_siem/"
+        owner: root
+        group: root
+        mode: "0644"
+        directory_mode: "0755"
+      notify: Restart labforge logviewer
+
+    - name: Install the viewer entrypoint
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../siem/run_logviewer.py"
+        dest: "{{ splunk_viewer_dir }}/run_logviewer.py"
+        owner: root
+        group: root
+        mode: "0755"
+      notify: Restart labforge logviewer
 
     - name: Install the log-viewer systemd unit
       ansible.builtin.template:

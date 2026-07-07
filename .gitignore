@@ -10,6 +10,8 @@
 scans/
 *.pcap
 *.pcapng
+# machine-readable isolation gate report (regenerated each verify run)
+isolation-report.json
 # staged licensed Splunk package (never commit binaries/licenses)
 splunk.deb
 ansible/roles/splunk/files/splunk.deb
@@ -31,6 +33,12 @@ __pycache__/
 .venv/
 venv/
 .pytest_cache/
+# coverage run artefacts (the committed badge siem/coverage.svg is kept)
+.coverage
+siem/.coverage
+siem/coverage.xml
+siem/coverage.json
+siem/coverage.new.svg
 
 # --- Build output / compiled -----------------------------------------------
 target/
@@ -48,3 +56,6 @@ Thumbs.db
 .idea/
 .vscode/
 *~
+
+# --- local editor/agent tooling --------------------------------------------
+.claude/

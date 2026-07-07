@@ -1,0 +1,5 @@
+# Test tooling for the labforge SIEM package.
+# The package itself has ZERO runtime dependencies (Python stdlib only) —
+# these are only needed to run the flagship test suite + coverage locally.
+pytest>=8.0
+coverage>=7.0

@@ -58,14 +58,21 @@ More filters in [docs/wireshark.md](wireshark.md).
 
 ## 5. Blue-team: find yourself in the SIEM
 
-Open <http://10.20.0.20:8000> and search:
+Open <http://10.20.0.20:8000>. The dashboard flags your attacks automatically —
+a red banner appears when a high-severity rule fires, and the **Detections**
+panel names each one (sqlmap scan, nmap sweep, SSH/RDP brute force) with its
+MITRE ATT&CK id. Click a detection to drill into the host and see the matching
+log lines highlighted.
+
+You can also search manually (or use the one-click saved searches):
 
 - `sqlmap` if you used it,
 - `POST` around the DVWA login time,
 - `nikto` if you scanned.
 
-Note what each attack looks like in the logs. That signature knowledge is the
-point — offense to understand defense. Details in [docs/siem.md](siem.md).
+Compare the auto-detections against your own reading of the raw logs — that
+signature knowledge is the point: offense to understand defense. The rules and
+their signatures are documented in [docs/siem.md](siem.md#built-in-detections).
 
 ## 6. (Optional) Windows victim
 
@@ -82,7 +89,11 @@ smbclient -L //10.20.0.40 -N
 hydra -l labuser -P /usr/share/wordlists/rockyou.txt rdp://10.20.0.40
 ```
 
-Watch the failed logons (`EventID=4625`) show up in the SIEM.
+Watch the failed logons (`EventID=4625`) show up in the SIEM — the victim's
+PowerShell forwarder ships them over UDP and the collector now accepts both TCP
+and UDP, so they actually land. The **RDP/Windows brute force** detection fires
+once the 4625 count crosses its threshold; if a spray succeeds you'll also see
+the critical **logon-after-brute** alert.
 
 ## 7. Tear down
 

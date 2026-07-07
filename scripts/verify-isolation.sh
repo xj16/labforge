@@ -62,6 +62,9 @@ record() {
 
 # The Linux egress probe: returns 0 (and prints which vector) if ANYTHING got
 # out. All commands are hard-timed so a hung box can't stall the gate.
+# SC2016: the $leak expansions are DELIBERATELY not expanded here — this whole
+# string is shipped to the guest and evaluated there by `vagrant ssh -c`.
+# shellcheck disable=SC2016
 LINUX_PROBE='
 leak=""
 timeout 5 bash -c "exec 3<>/dev/tcp/1.1.1.1/443" 2>/dev/null && leak="tcp443:1.1.1.1"
